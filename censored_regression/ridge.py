@@ -5,26 +5,25 @@ from base_estimator import BaseEstimator
 from parakeet import jit 
 
 @jit 
-def fast_lasso_sgd_iteration(X, Y, C, eta, u, v, regularization_weight):
+def fast_ridge_sgd_iteration(X, Y, C, eta, w, regularization_weight):
     n_samples, n_features = X.shape
     for sample_idx in xrange(n_samples):
         x = X[sample_idx]
         y = Y[sample_idx]
-        predicted = 0.0
+        predicted = 0.0 
         for i in xrange(n_features):
-            predicted += x[i] * (u[i] - v[i])
+            predicted += x[i] * w[i]
         difference = y - predicted 
         if difference < 0 and C[sample_idx]:
             for i in xrange(n_features):
-                u[i] = max(0, u[i] - eta * regularization_weight)
-                v[i] = max(0, v[i] - eta * regularization_weight)
+                w[i] -= eta * regularization_weight * w[i]
         else: 
             for i in xrange(n_features):
                 gradient_i = difference * x[i]
-                u[i] = max(0, u[i] - eta * (regularization_weight - gradient_i))
-                v[i] = max(0, v[i] - eta * (regularization_weight + gradient_i))
+                w[i] -= eta * (regularization_weight * w[i] - gradient_i)
+             
 
-class CensoredLasso(BaseEstimator):
+class CensoredRidge(BaseEstimator):
 
     def __init__(self, *args, **kwargs):
         """
@@ -33,13 +32,10 @@ class CensoredLasso(BaseEstimator):
         self.regularization_weight = kwargs.pop('regularization_weight', 0.001)
         BaseEstimator.__init__(self, *args, **kwargs)
 
-    def _get_linear_weights(self, u, v):
-        return u - v
-
-    def _optimization_iteration(self,X,Y,C,eta,u,v):
+    def _optimization_iteration(self,X,Y,C,eta,w):
         assert X.ndim == 2 
-        fast_lasso_sgd_iteration(X, Y, C, eta, u, v, self.regularization_weight)
-        return u,v 
+        fast_ridge_sgd_iteration(X, Y, C, eta, w, self.regularization_weight)
+        return w
     
 
 
@@ -60,22 +56,15 @@ class CensoredLasso(BaseEstimator):
         """
 
         X, Y, C, n_samples, n_features = self._prepare_inputs(X, Y, C)
-        
+
         w = np.zeros(X.shape[1], dtype = Y.dtype) #np.random.randn(X.shape[1]) * Y.std()
-        
-        # the SGD form of Lasso consists of updates to 
-        # two positive vector u,v 
-        # such that w = u - v 
-        u = np.zeros_like(w)
-        v = np.zeros_like(w)
-        eta = self._get_learning_rate(X, Y, C, u, v)
+        eta = self._get_learning_rate(X, Y, C, w)
 
 
         last_empirical_error = np.inf 
         n_drops = 0
         for iter_idx in xrange(self.n_iters):
-            u,v = self._optimization_iteration(X,Y,C,eta,u,v)
-            w = u - v
+            w = self._optimization_iteration(X,Y,C,eta,w)
             error = self._censored_training_error(X, Y, C, w, intercept = 0)
 
             self.logger.info("Iter #%d, empirical error %0.4f",
@@ -97,5 +86,5 @@ class CensoredLasso(BaseEstimator):
             self._censored_training_error(X, Y, C, w, intercept = 0),
         )
         self.coef_ = w
-       
+    
         return self 

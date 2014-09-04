@@ -21,14 +21,17 @@ class BaseEstimator(object):
         n_iters : bool
             Number of passes over the dataset 
 
-        eta : learning rate 
-
-        fit_intercept : bool 
-            Extend input data with constant columns of 1s 
+        eta : learning rate
+            If not provided, then learned estimated from a subset
+            of the data. 
 
         normalize : bool
             Normalize input data by subtracting its mean 
             and dividing by its variance. 
+
+        fit_intercept : bool 
+            Normalize target values by subtracting their mean and
+            dividing by standard deviation of each feature. 
 
         verbose : bool 
             Print intermediate status updates during optimization 
