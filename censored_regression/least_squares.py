@@ -49,9 +49,9 @@ class CensoredLeastSquares(BaseEstimator):
         convergence_counter = 0
         for iter_idx in xrange(self.n_iters):
             w = self._optimization_iteration(X, Y, C, eta, w)
-            error = self._censored_prediction_error(X, Y, C, w)
+            error = self._censored_training_error(X, Y, C, w, intercept = 0)
 
-            logging.info("Iter #%d, empirical error %0.4f", 
+            self.logger.info("Iter #%d, empirical error %0.4f", 
                 iter_idx, 
                 error, 
             )
@@ -67,9 +67,9 @@ class CensoredLeastSquares(BaseEstimator):
                 break 
             else:
                 last_empirical_error = error 
-        logging.info(
+        self.logger.info(
             "Final empirical error %0.4f", 
-            self._censored_prediction_error(X, Y, C, w),
+            self._censored_training_error(X, Y, C, w, intercept = 0),
         )
         self.coef_ = w
         return self 
