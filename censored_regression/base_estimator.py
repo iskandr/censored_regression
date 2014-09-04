@@ -115,7 +115,7 @@ class BaseEstimator(object):
     def _find_best_learning_rate(
             self, X, Y, C, 
             initial_parameters, 
-            subset_size = 400,
+            subset_size = 500,
             n_epochs = 5,  
             candidate_etas = 2.0 ** -np.arange(20)):
         """
@@ -163,7 +163,7 @@ class BaseEstimator(object):
         # just to be safe, shrink the best learning rate
         # it's better to converge more slowly than risk 
         # a learning rate which worked well early but then diverges
-        return best_eta / 10.0
+        return best_eta / 5.0
 
     def _get_learning_rate(self, X, Y, C, *params):
         """
