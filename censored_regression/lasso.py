@@ -1,5 +1,5 @@
+import logging 
 import numpy as np 
-
 from base_estimator import BaseEstimator 
 
 class CensoredLasso(BaseEstimator):
@@ -10,6 +10,29 @@ class CensoredLasso(BaseEstimator):
         """
         self.regularization_weight = kwargs.pop('regularization_weight', 0.01)
         BaseEstimator.__init__(self, *args, **kwargs)
+
+    def _get_linear_weights(self, u, v):
+        return u - v
+
+    def _optimization_iteration(self,X,Y,C,eta,u,v):
+        assert X.ndim == 2 
+        n_samples = X.shape[0]
+        regularization_weight = self.regularization_weight
+        for sample_idx in xrange(n_samples):
+            x = X[sample_idx]
+            y = Y[sample_idx]
+            predicted = np.dot(x, u-v)
+            difference = y - predicted 
+            if difference < 0 and C[sample_idx]:
+                u = np.maximum(0, u - eta * regularization_weight)
+                v = np.maximum(0, v - eta * regularization_weight)
+            else: 
+                gradient = difference * x
+                u = np.maximum(0, u - eta * (regularization_weight - gradient))
+                v = np.maximum(0, v - eta * (regularization_weight + gradient))
+        return u,v 
+    
+
 
     def fit(self, X, Y, C):
         """
@@ -29,41 +52,24 @@ class CensoredLasso(BaseEstimator):
 
         X, Y, C, n_samples, n_features = self._prepare_inputs(X, Y, C)
 
-        w = np.random.randn(X.shape[1]) * Y.std()
+        w = np.zeros(X.shape[1], dtype = Y.dtype) #np.random.randn(X.shape[1]) * Y.std()
         
         # the SGD form of Lasso consists of updates to 
         # two positive vector u,v 
         # such that w = u - v 
         u = np.zeros_like(w)
         v = np.zeros_like(w)
-        #pos_mask = w>0
-        #u[pos_mask] = w[pos_mask]
-        #neg_mask = w<0
-        #v[neg_mask] = -w[neg_mask]
-        #v = np.zeros_like(w)
-        #u = np.zeros_like(v)
-        eta = self.eta 
-        regularization_weight = self.regularization_weight
+        eta = self._get_learning_rate(X, Y, C, u, v)
+
 
         last_empirical_error = np.inf 
         convergence_counter = 0
         for iter_idx in xrange(self.n_iters):
-            for sample_idx in xrange(n_samples):
-                x = X[sample_idx]
-                y = Y[sample_idx]
-                predicted = np.dot(x, w)
-                difference = predicted - y
-                if difference > 0 and C[sample_idx]:
-                    u = np.maximum(0, u - eta * regularization_weight)
-                    v = np.maximum(0, v - eta * regularization_weight)
-                else: 
-                    #gradient = x * difference
-                    u = np.maximum(0, u - eta * (regularization_weight - (y-predicted)*x))
-                    v = np.maximum(0, v - eta * (regularization_weight + (y-predicted)*x))
+            u,v = self._optimization_iteration(X,Y,C,eta,u,v)
             w = u - v
-            error = self.censored_prediction_error(X, Y, C, w)
+            error = self._censored_prediction_error(X, Y, C, w)
 
-            print "Iter #%d, empirical error %0.4f" % (
+            logging.info("Iter #%d, empirical error %0.4f",
                 iter_idx, 
                 error, 
             )
@@ -78,8 +84,8 @@ class CensoredLasso(BaseEstimator):
                 break 
             else:
                 last_empirical_error = error 
-        print "Final empirical error %0.4f" % (
-            self.censored_prediction_error(X, Y, C, w),
+        logging.info("Final empirical error %0.4f", 
+            self._censored_prediction_error(X, Y, C, w),
         )
         self.coef_ = w
        
