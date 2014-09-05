@@ -25,11 +25,11 @@ def fast_lasso_sgd_iteration(X, Y, C, eta, u, v, regularization_weight):
                 v[i] = max(0, v[i] - eta * (regularization_weight + gradient_i))
 
 class CensoredLasso(BaseEstimator):
+    """
+    Censored L1-penalized (Lasso) linear regression with stochastic gradient descent estimator 
+    """
 
     def __init__(self, *args, **kwargs):
-        """
-        Unregularized ordinary least squares with censored labels. 
-        """
         self.regularization_weight = kwargs.pop('regularization_weight', 0.001)
         BaseEstimator.__init__(self, *args, **kwargs)
 
@@ -72,7 +72,7 @@ class CensoredLasso(BaseEstimator):
 
 
         last_empirical_error = np.inf 
-        n_drops = 0
+        n_resets = 0
         for iter_idx in xrange(self.n_iters):
             u,v = self._optimization_iteration(X,Y,C,eta,u,v)
             w = u - v
@@ -87,10 +87,15 @@ class CensoredLasso(BaseEstimator):
                 assert False, "Failed to converge"
 
             if error_ratio > 0.99999999:
-                eta /= 2.0 
-                self.logger.info("Dropped learning rate to %f", eta)
-                n_drops += 1
-            if eta < 10 ** -8 or n_drops > 5:
+                eta = self._find_best_learning_rate(
+                    X, Y, C,  
+                    initial_parameters = [u, v],  
+                    divide_by = 2, 
+                    candidate_etas = [4*eta, 2*eta, eta/2, eta/4, eta/8, eta/16]
+                )
+                self.logger.info("Reset learning rate to %f", eta)
+                n_resets += 1
+            if eta < 10 ** -8 or n_resets > 5:
                 break
             last_empirical_error = error 
         self.logger.info("Final empirical error %0.4f", 

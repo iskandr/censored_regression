@@ -10,7 +10,7 @@ class BaseEstimator(object):
             eta = None, 
             fit_intercept = True,
             normalize = True, 
-            verbose = True):
+            verbose = False):
         """
         
         Parameters
@@ -66,6 +66,15 @@ class BaseEstimator(object):
             Y_subset = Y[:2*n/3]
             estimates.append(Y_subset.mean())
         return np.median(estimates)
+
+    def _shuffle(self, X, Y, C):    
+        shuffle_idx = np.arange(len(X))
+        np.random.shuffle(shuffle_idx)
+        X = X[shuffle_idx]
+        Y = Y[shuffle_idx]
+        C = C[shuffle_idx]
+        return X, Y, C
+
     def _prepare_inputs(self, X, Y, C):
         """
         Convert inputs to NumPy arrays and shuffle them if 
@@ -88,12 +97,8 @@ class BaseEstimator(object):
             "Expected %d but got vector of length %d" % (n_samples, len(C))
 
         if self.shuffle:
-            shuffle_idx = np.arange(n_samples)
-            np.random.shuffle(shuffle_idx)
-            X = X[shuffle_idx]
-            Y = Y[shuffle_idx]
-            C = C[shuffle_idx]
-        
+            X, Y, C = self._shuffle(X, Y, C)
+
         if self.normalize: 
             self.mean_ = X.mean(axis = 0)
             X -= self.mean_ 
@@ -116,7 +121,8 @@ class BaseEstimator(object):
             self, X, Y, C, 
             initial_parameters, 
             subset_size = 500,
-            n_epochs = 5,  
+            n_epochs = 10,  
+            divide_by = 4.0, 
             candidate_etas = 2.0 ** -np.arange(20)):
         """
         Assumes that derived class implemented 
@@ -163,7 +169,7 @@ class BaseEstimator(object):
         # just to be safe, shrink the best learning rate
         # it's better to converge more slowly than risk 
         # a learning rate which worked well early but then diverges
-        return best_eta / 5.0
+        return best_eta / divide_by
 
     def _get_learning_rate(self, X, Y, C, *params):
         """
