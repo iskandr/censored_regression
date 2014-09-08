@@ -1,4 +1,15 @@
 censored_regression
 ===================
 
-Linear regression with lower-bound labels
+Linear regression with inequality constraints on some of the target values. Useful when you don't care about the specific value predicted
+for some samples, only that's they're above some given value. 
+
+Implementations for ordinary least-squares regression, as well as L1-penalized (Lasso) and L2-penalized (Ridge). 
+
+Example usage:
+```
+	model = censored_regression.Lasso()
+	# C is a boolean mask indicating which targets are lower bounds
+	model.fit(X,Y,C)
+	model.predict(X_test)
+```

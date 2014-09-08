@@ -239,5 +239,5 @@ class BaseEstimator(object):
         if self.normalize:
             X -= self.mean_ 
             X /= self.std_ 
-        Y = self._predict_normalized(X, w = w)
-        return Y
+        return self._predict_normalized(X, w = w, intercept = self.intercept_)
+        

@@ -87,12 +87,7 @@ class CensoredLasso(BaseEstimator):
                 assert False, "Failed to converge"
 
             if error_ratio > 0.99999999:
-                eta = self._find_best_learning_rate(
-                    X, Y, C,  
-                    initial_parameters = [u, v],  
-                    divide_by = 2, 
-                    candidate_etas = [4*eta, 2*eta, eta/2, eta/4, eta/8, eta/16]
-                )
+                eta /= 2.0 
                 self.logger.info("Reset learning rate to %f", eta)
                 n_resets += 1
             if eta < 10 ** -8 or n_resets > 5:
